@@ -30,8 +30,8 @@ async function run() {
     await client.db("admin").command({ ping: 1 });
 
     // Declare Books Collection
-
     const booksCollection = client.db( 'booksDB' ).collection( 'books' );
+    
 
     app.get( '/books', async ( req, res ) =>
         {
@@ -57,7 +57,69 @@ async function run() {
           const result = await booksCollection.findOne( query );
           res.send( result );
         } )
-    
+
+
+        
+        // find books with category name
+
+        // app.get("/books/:category", (req, res) => {
+        //     const category = req.params.category; // Extract category from route params
+          
+        //     // Filter books based on category if category is provided
+        //     let filteredBooks = books;
+        //     if (category) {
+        //       filteredBooks = books.filter((book) => book.category === category);
+        //     }
+          
+        //     res.json(filteredBooks);
+        //   });
+
+        // Declare Program Collection 
+    const programsCollection = client.db( 'programsDB' ).collection( 'programs' );
+
+   // Collection for programs
+
+
+   // Get all programs
+   app.get('/programs', async (req, res) => {
+       try {
+           const cursor = programsCollection.find();
+           const result = await cursor.toArray();
+           res.json(result);
+       } catch (error) {
+           console.error('Error fetching programs:', error);
+           res.status(500).json({ error: 'Internal server error' });
+       }
+   });
+
+   // Add a new program
+   app.post('/programs', async (req, res) => {
+       try {
+           const newProgram = req.body;
+           const result = await programsCollection.insertOne(newProgram);
+           res.json(result.ops[0]); // Return the inserted document
+       } catch (error) {
+           console.error('Error adding program:', error);
+           res.status(500).json({ error: 'Internal server error' });
+       }
+   });
+
+   // Get a program by ID
+   app.get('/programs/:id', async (req, res) => {
+       try {
+           const id = req.params.id;
+           const query = { _id: new ObjectId(id) };
+           const result = await programsCollection.findOne(query);
+           if (!result) {
+               res.status(404).json({ error: 'Program not found' });
+               return;
+           }
+           res.json(result);
+       } catch (error) {
+           console.error('Error fetching program by ID:', error);
+           res.status(500).json({ error: 'Internal server error' });
+       }
+   });
     
 
 
