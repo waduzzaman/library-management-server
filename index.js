@@ -40,7 +40,7 @@ async function run() {
           res.send( result );
         } );
 
-          // Post / add spots in the database 
+          // Post / add a book in the database 
     app.post( '/books', async ( req, res ) =>
         {
           const newBooks = req.body;
@@ -48,6 +48,16 @@ async function run() {
           const result = await booksCollection.insertOne( newBooks );
           res.send( result );
         } )
+
+          // find one book by id and return it as json
+    app.get( '/books/:id', async ( req, res ) =>
+        {
+          const id = req.params.id;
+          const query = { _id: new ObjectId( id ) }
+          const result = await booksCollection.findOne( query );
+          res.send( result );
+        } )
+    
     
 
 
