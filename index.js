@@ -40,6 +40,16 @@ async function run() {
           res.send( result );
         } );
 
+          // Post / add spots in the database 
+    app.post( '/books', async ( req, res ) =>
+        {
+          const newBooks = req.body;
+          console.log( newBooks );
+          const result = await booksCollection.insertOne( newBooks );
+          res.send( result );
+        } )
+    
+
 
    
 
