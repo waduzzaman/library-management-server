@@ -61,9 +61,23 @@ async function run ()
             res.send( result );
         } )
 
+        // get borrowed book: 
+
+        app.get('/borrowed-books', async (req, res) => {
+            try {
+                const userEmail = req.query.userEmail;
+                // Query the database to find borrowed books for the user
+                const borrowedBooks = await BorrowedBook.find({ userEmail });
+                res.json(borrowedBooks);
+            } catch (error) {
+                console.error('Error fetching borrowed books:', error);
+                res.status(500).send('Internal server error');
+            }
+        });
+        
+
 
         // Borrowed book query: 
-
         app.post( '/books/:id/borrow', async ( req, res ) =>
         {
             try
@@ -89,6 +103,26 @@ async function run ()
             }
         } );
 
+        // Return book functions:
+
+        app.post('/books/:id/return', async (req, res) => {
+            try {
+              const bookId = req.params.id;
+              const { userEmail } = req.body;
+          
+              // Update book quantity using $inc operator
+              await Book.findByIdAndUpdate(bookId, { $inc: { quantity: 1 } });
+          
+              // Remove book from Borrowed Books collection
+              await BorrowedBook.findOneAndDelete({ bookId, userEmail });
+          
+              res.status(200).send('Book returned successfully');
+            } catch (error) {
+              console.error('Error returning book:', error);
+              res.status(500).send('Internal server error');
+            }
+          });
+          
 
 
         // Collection for programs
