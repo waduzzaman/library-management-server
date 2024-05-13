@@ -3,8 +3,11 @@ const cors = require( 'cors' );
 require( 'dotenv' ).config();
 const { MongoClient, ServerApiVersion, ObjectId } = require( 'mongodb' );
 
+
 const app = express();
 const port = process.env.PORT || 5000;
+
+
 
 // Middleware
 app.use( cors() );
@@ -61,20 +64,79 @@ async function run ()
             res.send( result );
         } )
 
+
+
+
         // get borrowed book: 
 
-        app.get('/borrowed-books', async (req, res) => {
-            try {
+        app.get( '/borrowed-books', async ( req, res ) =>
+        {
+            try
+            {
                 const userEmail = req.query.userEmail;
                 // Query the database to find borrowed books for the user
-                const borrowedBooks = await BorrowedBook.find({ userEmail });
-                res.json(borrowedBooks);
-            } catch (error) {
-                console.error('Error fetching borrowed books:', error);
-                res.status(500).send('Internal server error');
+                const borrowedBooks = await BorrowedBook.find( { userEmail } );
+                res.json( borrowedBooks );
+            } catch ( error )
+            {
+                console.error( 'Error fetching borrowed books:', error );
+                res.status( 500 ).send( 'Internal server error' );
             }
-        });
-        
+        } );
+
+        // To Update  a spot by its ID create a method. Requires the data in the body of the PUT request to contain
+        // at least an `updatedAt` timestamp. Returns the updated document as JSON.
+        app.get( "/books/:id", async ( req, res ) =>
+        {
+            console.log( req.params.id );
+            const result = await booksCollection.findOne( {
+                _id: new ObjectId( req.params.id ),
+            } );
+
+            console.log( result );
+            res.send( result );
+        } )
+
+        // Update a  specific spot based on its ID. 
+        app.put( "/updateBooks/:id", async ( req, res ) =>
+        {
+            console.log( req.params.id );
+            const query = { _id: new ObjectId( req.params.id ) };
+            const data = {
+                $set: {
+                    image: req.body.image,
+                    name: req.body.name,
+                    quantity: req.body.quantity,
+                    author: req.body.author,
+                    category: req.body.category,
+                    description: req.body.description,
+                    ratings: req.body.ratings,                   
+                    content: req.body.content
+                }
+            }
+
+            const result = await booksCollection.updateOne( query, data )
+            console.log( result );
+            res.send( result )
+
+        } )
+
+
+
+        // Delete a spot by id
+        app.delete( '/delete/:id', async ( req, res ) =>
+        {
+
+            const result = await booksCollection.deleteOne( { _id: new ObjectId( req.params.id ) } );
+            console.log( result );
+            res.send( result );
+        } );
+
+
+
+
+
+
 
 
         // Borrowed book query: 
@@ -105,24 +167,27 @@ async function run ()
 
         // Return book functions:
 
-        app.post('/books/:id/return', async (req, res) => {
-            try {
-              const bookId = req.params.id;
-              const { userEmail } = req.body;
-          
-              // Update book quantity using $inc operator
-              await Book.findByIdAndUpdate(bookId, { $inc: { quantity: 1 } });
-          
-              // Remove book from Borrowed Books collection
-              await BorrowedBook.findOneAndDelete({ bookId, userEmail });
-          
-              res.status(200).send('Book returned successfully');
-            } catch (error) {
-              console.error('Error returning book:', error);
-              res.status(500).send('Internal server error');
+        app.post( '/books/:id/return', async ( req, res ) =>
+        {
+            try
+            {
+                const bookId = req.params.id;
+                const { userEmail } = req.body;
+
+                // Update book quantity using $inc operator
+                await Book.findByIdAndUpdate( bookId, { $inc: { quantity: 1 } } );
+
+                // Remove book from Borrowed Books collection
+                await BorrowedBook.findOneAndDelete( { bookId, userEmail } );
+
+                res.status( 200 ).send( 'Book returned successfully' );
+            } catch ( error )
+            {
+                console.error( 'Error returning book:', error );
+                res.status( 500 ).send( 'Internal server error' );
             }
-          });
-          
+        } );
+
 
 
         // Collection for programs
