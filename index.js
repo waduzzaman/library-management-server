@@ -2,15 +2,30 @@ const express = require( 'express' );
 const cors = require( 'cors' );
 require( 'dotenv' ).config();
 const { MongoClient, ServerApiVersion, ObjectId } = require( 'mongodb' );
+const { validationResult } = require( 'express-validator' );
+
+
 
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 
 
 
 // Middleware
-app.use( cors() );
+
+app.use(
+    cors( {
+        origin: [
+            "http://localhost:5173",
+            "https://community-library-server.vercel.app",
+            "https://community-library-d20f8.web.app",
+            "https://community-library-d20f8.firebaseapp.com"
+        ],
+        credentials: true,
+    } )
+);
+
 app.use( express.json() );
 
 // MongoDB connection
@@ -67,25 +82,9 @@ async function run ()
 
 
 
-        // get borrowed book: 
 
-        app.get( '/borrowed-books', async ( req, res ) =>
-        {
-            try
-            {
-                const userEmail = req.query.userEmail;
-                // Query the database to find borrowed books for the user
-                const borrowedBooks = await BorrowedBook.find( { userEmail } );
-                res.json( borrowedBooks );
-            } catch ( error )
-            {
-                console.error( 'Error fetching borrowed books:', error );
-                res.status( 500 ).send( 'Internal server error' );
-            }
-        } );
-
-        // To Update  a spot by its ID create a method. Requires the data in the body of the PUT request to contain
         // at least an `updatedAt` timestamp. Returns the updated document as JSON.
+
         app.get( "/books/:id", async ( req, res ) =>
         {
             console.log( req.params.id );
@@ -97,7 +96,7 @@ async function run ()
             res.send( result );
         } )
 
-        // Update a  specific spot based on its ID. 
+        // Update a  specific book based on its ID. 
         app.put( "/updateBooks/:id", async ( req, res ) =>
         {
             console.log( req.params.id );
@@ -110,7 +109,7 @@ async function run ()
                     author: req.body.author,
                     category: req.body.category,
                     description: req.body.description,
-                    ratings: req.body.ratings,                   
+                    ratings: req.body.ratings,
                     content: req.body.content
                 }
             }
@@ -121,9 +120,7 @@ async function run ()
 
         } )
 
-
-
-        // Delete a spot by id
+        // Delete a book by id
         app.delete( '/delete/:id', async ( req, res ) =>
         {
 
@@ -133,39 +130,99 @@ async function run ()
         } );
 
 
+        // Borrowed book methods: 
 
+          // Collection for Borrow
+          const borrowCollection = client.db( 'borrowDB' ).collection( 'borrow' );
 
+        // get borrowed book: 
 
-
-
-
-        // Borrowed book query: 
-        app.post( '/books/:id/borrow', async ( req, res ) =>
-        {
-            try
-            {
+        app.post('/books/:id/borrow', async (req, res) => {
+            try {
                 const bookId = req.params.id;
                 const { returnDate, userEmail, userName } = req.body;
-
+        
+                // Validate returnDate if necessary
+                // ...
+        
                 // Update book quantity using $inc operator
-                await Book.findByIdAndUpdate( bookId, { $inc: { quantity: -1 } } );
-
-                // Add book to Borrowed Books collection or update existing record
-                await BorrowedBook.findOneAndUpdate(
-                    { bookId, userEmail },
-                    { returnDate, userName },
-                    { upsert: true }
+                await booksCollection.updateOne(
+                    { _id: ObjectId(bookId) },
+                    { $inc: { quantity: -1 } }
                 );
-
-                res.status( 200 ).send( 'Book borrowed successfully' );
-            } catch ( error )
-            {
-                console.error( 'Error borrowing book:', error );
-                res.status( 500 ).send( 'Internal server error' );
+        
+                // Add book to Borrowed Books collection or update existing record
+                await borrowedBooksCollection.insertOne({
+                    bookId: ObjectId(bookId),
+                    returnDate,
+                    userEmail,
+                    userName
+                });
+        
+                res.status(200).json({ message: 'Book borrowed successfully' });
+            } catch (error) {
+                console.error('Error borrowing book:', error);
+                res.status(500).json({ message: 'Internal server error' });
             }
-        } );
+        });
+        
+
+      
+// // 
+//         app.post('/books/:id/borrow', async (req, res) => {
+//             try {
+//                 const errors = validationResult(req);
+//                 if (!errors.isEmpty()) {
+//                     return res.status(400).json({ errors: errors.array() });
+//                 }
+        
+//                 const bookId = req.params.id;
+//                 const { returnDate, userEmail, userName } = req.body;
+        
+//                 // Validate returnDate
+//                 if (!isValidDate(returnDate)) {
+//                     return res.status(400).json({ message: 'Invalid return date' });
+//                 }
+        
+//                 // Update book quantity using $inc operator
+//                 await Book.findByIdAndUpdate(bookId, { $inc: { quantity: -1 } });
+        
+//                 // Add book to Borrowed Books collection or update existing record
+//                 await BorrowedBook.findOneAndUpdate(
+//                     { bookId, userEmail },
+//                     { returnDate, userName },
+//                     { upsert: true }
+//                 );
+        
+//                 res.status(200).json({ message: 'Book borrowed successfully' });
+//             } catch (error) {
+//                 console.error('Error borrowing book:', error);
+//                 res.status(500).json({ message: 'Internal server error' });
+//             }
+//         });
+        
+        function isValidDate(dateString) {
+            // Implement your date validation logic here
+            // Return true if the date is valid, false otherwise
+        }
+
 
         // Return book functions:
+        app.get( '/borrowed-books', async ( req, res ) =>
+            {
+                try
+                {
+                    const userEmail = req.query.userEmail;
+                    // Query the database to find borrowed books for the user
+                    const borrowedBooks = await BorrowedBook.find( { userEmail } );
+                    res.json( borrowedBooks );
+                } catch ( error )
+                {
+                    console.error( 'Error fetching borrowed books:', error );
+                    res.status( 500 ).send( 'Internal server error' );
+                }
+            } );
+
 
         app.post( '/books/:id/return', async ( req, res ) =>
         {
@@ -187,6 +244,22 @@ async function run ()
                 res.status( 500 ).send( 'Internal server error' );
             }
         } );
+
+        app.post("/books/:id/borrow", async (req, res) => {
+            try {
+              const { id } = req.params;
+              const { returnDate, userEmail, userName } = req.body;
+          
+              // Your borrowing logic here
+              // Example: Update book quantity, add borrowing record to the database, etc.
+          
+              res.status(200).json({ message: "Book borrowed successfully" });
+            } catch (error) {
+              console.error("Error borrowing book:", error);
+              res.status(500).json({ message: "Internal server error" });
+            }
+          });
+          
 
 
 
@@ -246,19 +319,7 @@ async function run ()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-        // Start the server after setting up routes
+        // Start the server after setting up routes 
         app.listen( port, () =>
         {
             console.log( `Community Library server is running on port: ${ port }` );
@@ -268,7 +329,7 @@ async function run ()
         console.error( "Error connecting to MongoDB:", err );
     } finally
     {
-        // Ensure that the client will close when you finish/error
+        // Ensure that the client will close when you finish/but we need to close
         // await client.close();
     }
 }
